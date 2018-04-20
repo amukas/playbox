@@ -3,6 +3,9 @@ package am;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 import org.openjdk.jmh.profile.GCProfiler;
+import org.openjdk.jmh.profile.HotspotCompilationProfiler;
+import org.openjdk.jmh.profile.HotspotMemoryProfiler;
+import org.openjdk.jmh.profile.HotspotRuntimeProfiler;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
@@ -14,6 +17,9 @@ import java.util.concurrent.TimeUnit;
 
 import static java.lang.ThreadLocal.withInitial;
 
+@Fork(3)
+@Warmup(time = 5)
+@Measurement(time = 5)
 @Threads(10)
 @State(Scope.Benchmark)
 public class SpringPooling {
@@ -74,6 +80,7 @@ public class SpringPooling {
                 .warmupIterations(5)
                 .measurementIterations(5)
                 .addProfiler(GCProfiler.class)
+                .addProfiler(HotspotRuntimeProfiler.class)
                 .jvmArgs("-Xmx128M")
                 .forks(1)
                 .build();
@@ -86,7 +93,6 @@ class SomeComposite {
     private final String s1;
     private final int i1;
     private final String s2;
-    private final int _hash;
     private final String asString;
     private final static ThreadLocal<SomeComposite[]> cache = withInitial(() -> new SomeComposite[100]);
 
@@ -95,7 +101,6 @@ class SomeComposite {
         this.i1 = i1;
         this.s2 = s2;
         this.asString = s1 + i1 + s2;
-        this._hash = this.asString.hashCode();
     }
 
     public static SomeComposite valueOf(String s1, int i1, String s2) {
@@ -120,15 +125,13 @@ class SomeComposite {
         if (o == null || getClass() != o.getClass()) return false;
         SomeComposite that = (SomeComposite) o;
         return i1 == that.i1 &&
-                _hash == that._hash &&
                 Objects.equals(s1, that.s1) &&
-                Objects.equals(s2, that.s2) &&
-                Objects.equals(asString, that.asString);
+                Objects.equals(s2, that.s2);
     }
 
     @Override
     public int hashCode() {
-        return this._hash;
+        return this.asString.hashCode();
     }
 
     public String asString() {
@@ -141,67 +144,115 @@ class SomeComposite {
 
 # JMH version: 1.20
 # VM version: JDK 1.8.0_172-ea, VM 25.172-b03
-# VM invoker: D:\dev\jdk\jdk-8u172\jre\bin\java.exe
-# VM options: -Xmx128M
-# Warmup: 5 iterations, 1 s each
-# Measurement: 5 iterations, 1 s each
-# Timeout: 10 min per iteration
-# Threads: 10 threads, will synchronize iterations
-# Benchmark mode: Throughput, ops/time
-# Benchmark: am.SpringPooling.builder_thr
 
-Benchmark                                                    Mode  Cnt      Score     Error   Units
-SpringPooling.builder_thr                                   thrpt    5  14157.195 ± 218.194  ops/ms
-SpringPooling.builder_thr:·gc.alloc.rate                    thrpt    5   1483.155 ±  60.281  MB/sec
-SpringPooling.builder_thr:·gc.alloc.rate.norm               thrpt    5    160.003 ±   0.019    B/op
-SpringPooling.builder_thr:·gc.churn.PS_Eden_Space           thrpt    5   1497.222 ±  51.901  MB/sec
-SpringPooling.builder_thr:·gc.churn.PS_Eden_Space.norm      thrpt    5    161.524 ±   3.108    B/op
-SpringPooling.builder_thr:·gc.churn.PS_Survivor_Space       thrpt    5      0.700 ±   0.346  MB/sec
-SpringPooling.builder_thr:·gc.churn.PS_Survivor_Space.norm  thrpt    5      0.076 ±   0.036    B/op
-SpringPooling.builder_thr:·gc.count                         thrpt    5    288.000            counts
-SpringPooling.builder_thr:·gc.time                          thrpt    5     94.000                ms
+Benchmark                                                    Mode  Cnt      Score     Error     Units
+SpringPooling.builder_thr                                   thrpt    5  14222.191 ± 225.519    ops/ms
+SpringPooling.builder_thr:·gc.alloc.rate                    thrpt    5   1975.631 ±  32.876    MB/sec
+SpringPooling.builder_thr:·gc.alloc.rate.norm               thrpt    5    160.000 ±   0.001      B/op
+SpringPooling.builder_thr:·gc.churn.PS_Eden_Space           thrpt    5   1990.853 ±  32.149    MB/sec
+SpringPooling.builder_thr:·gc.churn.PS_Eden_Space.norm      thrpt    5    161.233 ±   0.895      B/op
+SpringPooling.builder_thr:·gc.churn.PS_Survivor_Space       thrpt    5      0.924 ±   0.215    MB/sec
+SpringPooling.builder_thr:·gc.churn.PS_Survivor_Space.norm  thrpt    5      0.075 ±   0.017      B/op
+SpringPooling.builder_thr:·gc.count                         thrpt    5   1342.000              counts
+SpringPooling.builder_thr:·gc.time                          thrpt    5    416.000                  ms
+SpringPooling.builder_thr:·rt.safepointSyncTime             thrpt    5      1.600                  ms
+SpringPooling.builder_thr:·rt.safepointTime                 thrpt    5      5.201                  ms
+SpringPooling.builder_thr:·rt.safepoints                    thrpt    5   2696.000              counts
+SpringPooling.builder_thr:·rt.sync.contendedLockAttempts    thrpt    5    410.000               locks
+SpringPooling.builder_thr:·rt.sync.fatMonitors              thrpt    5    512.000            monitors
+SpringPooling.builder_thr:·rt.sync.futileWakeups            thrpt    5     70.000              counts
+SpringPooling.builder_thr:·rt.sync.monitorDeflations        thrpt    5     86.000            monitors
+SpringPooling.builder_thr:·rt.sync.monitorInflations        thrpt    5     88.000            monitors
+SpringPooling.builder_thr:·rt.sync.notifications            thrpt    5    142.000              counts
+SpringPooling.builder_thr:·rt.sync.parks                    thrpt    5    545.000              counts
 
-SpringPooling.pooled_thr                                    thrpt    5  15748.477 ± 252.326  ops/ms
-SpringPooling.pooled_thr:·gc.alloc.rate                     thrpt    5      0.003 ±   0.001  MB/sec
-SpringPooling.pooled_thr:·gc.alloc.rate.norm                thrpt    5     ≈ 10⁻⁴              B/op
-SpringPooling.pooled_thr:·gc.count                          thrpt    5        ≈ 0            counts
+SpringPooling.pooled_thr                                    thrpt    5  13920.134 ±  78.680    ops/ms
+SpringPooling.pooled_thr:·gc.alloc.rate                     thrpt    5      0.001 ±   0.001    MB/sec
+SpringPooling.pooled_thr:·gc.alloc.rate.norm                thrpt    5     ≈ 10⁻⁴                B/op
+SpringPooling.pooled_thr:·gc.count                          thrpt    5        ≈ 0              counts
+SpringPooling.pooled_thr:·rt.safepointSyncTime              thrpt    5      0.006                  ms
+SpringPooling.pooled_thr:·rt.safepointTime                  thrpt    5      0.009                  ms
+SpringPooling.pooled_thr:·rt.safepoints                     thrpt    5     19.000              counts
+SpringPooling.pooled_thr:·rt.sync.contendedLockAttempts     thrpt    5    108.000               locks
+SpringPooling.pooled_thr:·rt.sync.fatMonitors               thrpt    5    384.000            monitors
+SpringPooling.pooled_thr:·rt.sync.futileWakeups             thrpt    5      3.000              counts
+SpringPooling.pooled_thr:·rt.sync.monitorDeflations         thrpt    5     78.000            monitors
+SpringPooling.pooled_thr:·rt.sync.monitorInflations         thrpt    5     80.000            monitors
+SpringPooling.pooled_thr:·rt.sync.notifications             thrpt    5     41.000              counts
+SpringPooling.pooled_thr:·rt.sync.parks                     thrpt    5    136.000              counts
 
-SpringPooling.simple_thr                                    thrpt    5  13399.054 ± 135.133  ops/ms
-SpringPooling.simple_thr:·gc.alloc.rate                     thrpt    5    847.681 ±  28.690  MB/sec
-SpringPooling.simple_thr:·gc.alloc.rate.norm                thrpt    5     96.102 ±   0.871    B/op
-SpringPooling.simple_thr:·gc.churn.PS_Eden_Space            thrpt    5    853.020 ±  60.844  MB/sec
-SpringPooling.simple_thr:·gc.churn.PS_Eden_Space.norm       thrpt    5     96.710 ±   7.104    B/op
-SpringPooling.simple_thr:·gc.churn.PS_Survivor_Space        thrpt    5      0.321 ±   0.160  MB/sec
-SpringPooling.simple_thr:·gc.churn.PS_Survivor_Space.norm   thrpt    5      0.036 ±   0.018    B/op
-SpringPooling.simple_thr:·gc.count                          thrpt    5    197.000            counts
-SpringPooling.simple_thr:·gc.time                           thrpt    5     55.000                ms
+SpringPooling.simple_thr                                    thrpt    5  15505.966 ± 138.718    ops/ms
+SpringPooling.simple_thr:·gc.alloc.rate                     thrpt    5   1290.685 ±   9.684    MB/sec
+SpringPooling.simple_thr:·gc.alloc.rate.norm                thrpt    5     96.000 ±   0.001      B/op
+SpringPooling.simple_thr:·gc.churn.PS_Eden_Space            thrpt    5   1302.258 ±  19.991    MB/sec
+SpringPooling.simple_thr:·gc.churn.PS_Eden_Space.norm       thrpt    5     96.861 ±   0.922      B/op
+SpringPooling.simple_thr:·gc.churn.PS_Survivor_Space        thrpt    5      0.344 ±   0.122    MB/sec
+SpringPooling.simple_thr:·gc.churn.PS_Survivor_Space.norm   thrpt    5      0.026 ±   0.009      B/op
+SpringPooling.simple_thr:·gc.count                          thrpt    5    929.000              counts
+SpringPooling.simple_thr:·gc.time                           thrpt    5    270.000                  ms
+SpringPooling.simple_thr:·rt.safepointSyncTime              thrpt    5      1.234                  ms
+SpringPooling.simple_thr:·rt.safepointTime                  thrpt    5      3.635                  ms
+SpringPooling.simple_thr:·rt.safepoints                     thrpt    5   1886.000              counts
+SpringPooling.simple_thr:·rt.sync.contendedLockAttempts     thrpt    5    277.000               locks
+SpringPooling.simple_thr:·rt.sync.fatMonitors               thrpt    5    512.000            monitors
+SpringPooling.simple_thr:·rt.sync.futileWakeups             thrpt    5     24.000              counts
+SpringPooling.simple_thr:·rt.sync.monitorDeflations         thrpt    5     86.000            monitors
+SpringPooling.simple_thr:·rt.sync.monitorInflations         thrpt    5     88.000            monitors
+SpringPooling.simple_thr:·rt.sync.notifications             thrpt    5    148.000              counts
+SpringPooling.simple_thr:·rt.sync.parks                     thrpt    5    393.000              counts
 
-----
+SpringPooling.builder_avg                                    avgt    5      0.712 ±   0.005     us/op
+SpringPooling.builder_avg:·gc.alloc.rate                     avgt    5   1976.014 ±   2.906    MB/sec
+SpringPooling.builder_avg:·gc.alloc.rate.norm                avgt    5    160.000 ±   0.001      B/op
+SpringPooling.builder_avg:·gc.churn.PS_Eden_Space            avgt    5   1989.939 ±   2.829    MB/sec
+SpringPooling.builder_avg:·gc.churn.PS_Eden_Space.norm       avgt    5    161.128 ±   0.033      B/op
+SpringPooling.builder_avg:·gc.churn.PS_Survivor_Space        avgt    5      0.993 ±   0.161    MB/sec
+SpringPooling.builder_avg:·gc.churn.PS_Survivor_Space.norm   avgt    5      0.080 ±   0.013      B/op
+SpringPooling.builder_avg:·gc.count                          avgt    5   1341.000              counts
+SpringPooling.builder_avg:·gc.time                           avgt    5    399.000                  ms
+SpringPooling.builder_avg:·rt.safepointSyncTime              avgt    5      1.426                  ms
+SpringPooling.builder_avg:·rt.safepointTime                  avgt    5      4.911                  ms
+SpringPooling.builder_avg:·rt.safepoints                     avgt    5   2708.000              counts
+SpringPooling.builder_avg:·rt.sync.contendedLockAttempts     avgt    5    396.000               locks
+SpringPooling.builder_avg:·rt.sync.fatMonitors               avgt    5    384.000            monitors
+SpringPooling.builder_avg:·rt.sync.futileWakeups             avgt    5     44.000              counts
+SpringPooling.builder_avg:·rt.sync.monitorDeflations         avgt    5     86.000            monitors
+SpringPooling.builder_avg:·rt.sync.monitorInflations         avgt    5     88.000            monitors
+SpringPooling.builder_avg:·rt.sync.notifications             avgt    5    131.000              counts
+SpringPooling.builder_avg:·rt.sync.parks                     avgt    5    516.000              counts
 
-SpringPooling.builder_avg                                    avgt    5      0.666 ±   0.017   us/op
-SpringPooling.builder_avg:·gc.alloc.rate                     avgt    5   1571.912 ±  53.751  MB/sec
-SpringPooling.builder_avg:·gc.alloc.rate.norm                avgt    5    160.000 ±   0.001    B/op
-SpringPooling.builder_avg:·gc.churn.PS_Eden_Space            avgt    5   1580.900 ±  67.039  MB/sec
-SpringPooling.builder_avg:·gc.churn.PS_Eden_Space.norm       avgt    5    160.918 ±   5.896    B/op
-SpringPooling.builder_avg:·gc.churn.PS_Survivor_Space        avgt    5      0.753 ±   0.324  MB/sec
-SpringPooling.builder_avg:·gc.churn.PS_Survivor_Space.norm   avgt    5      0.077 ±   0.034    B/op
-SpringPooling.builder_avg:·gc.count                          avgt    5    302.000            counts
-SpringPooling.builder_avg:·gc.time                           avgt    5     85.000                ms
-
-SpringPooling.pooled_avg                                     avgt    5      0.739 ±   0.082   us/op
-SpringPooling.pooled_avg:·gc.alloc.rate                      avgt    5      0.003 ±   0.001  MB/sec
-SpringPooling.pooled_avg:·gc.alloc.rate.norm                 avgt    5     ≈ 10⁻³              B/op
-SpringPooling.pooled_avg:·gc.count                           avgt    5        ≈ 0            counts
-
-SpringPooling.simple_avg                                     avgt    5      0.725 ±   0.010   us/op
-SpringPooling.simple_avg:·gc.alloc.rate                      avgt    5    872.445 ±  30.258  MB/sec
-SpringPooling.simple_avg:·gc.alloc.rate.norm                 avgt    5     96.000 ±   0.001    B/op
-SpringPooling.simple_avg:·gc.churn.PS_Eden_Space             avgt    5    878.034 ±  45.729  MB/sec
-SpringPooling.simple_avg:·gc.churn.PS_Eden_Space.norm        avgt    5     96.628 ±   7.765    B/op
-SpringPooling.simple_avg:·gc.churn.PS_Survivor_Space         avgt    5      0.318 ±   0.301  MB/sec
-SpringPooling.simple_avg:·gc.churn.PS_Survivor_Space.norm    avgt    5      0.035 ±   0.034    B/op
-SpringPooling.simple_avg:·gc.count                           avgt    5    200.000            counts
-SpringPooling.simple_avg:·gc.time                            avgt    5     57.000                ms
-
+SpringPooling.pooled_avg                                     avgt    5      0.714 ±   0.013     us/op
+SpringPooling.pooled_avg:·gc.alloc.rate                      avgt    5      0.001 ±   0.001    MB/sec
+SpringPooling.pooled_avg:·gc.alloc.rate.norm                 avgt    5     ≈ 10⁻⁴                B/op
+SpringPooling.pooled_avg:·gc.count                           avgt    5        ≈ 0              counts
+SpringPooling.pooled_avg:·rt.safepointSyncTime               avgt    5      0.008                  ms
+SpringPooling.pooled_avg:·rt.safepointTime                   avgt    5      0.011                  ms
+SpringPooling.pooled_avg:·rt.safepoints                      avgt    5     21.000              counts
+SpringPooling.pooled_avg:·rt.sync.contendedLockAttempts      avgt    5    137.000               locks
+SpringPooling.pooled_avg:·rt.sync.fatMonitors                avgt    5    384.000            monitors
+SpringPooling.pooled_avg:·rt.sync.futileWakeups              avgt    5      3.000              counts
+SpringPooling.pooled_avg:·rt.sync.monitorDeflations          avgt    5     84.000            monitors
+SpringPooling.pooled_avg:·rt.sync.monitorInflations          avgt    5     86.000            monitors
+SpringPooling.pooled_avg:·rt.sync.notifications              avgt    5     57.000              counts
+SpringPooling.pooled_avg:·rt.sync.parks                      avgt    5    171.000              counts
+SpringPooling.simple_avg                                     avgt    5      0.681 ±   0.008     us/op
+SpringPooling.simple_avg:·gc.alloc.rate                      avgt    5   1224.744 ±  17.981    MB/sec
+SpringPooling.simple_avg:·gc.alloc.rate.norm                 avgt    5     96.000 ±   0.001      B/op
+SpringPooling.simple_avg:·gc.churn.PS_Eden_Space             avgt    5   1234.670 ±  28.853    MB/sec
+SpringPooling.simple_avg:·gc.churn.PS_Eden_Space.norm        avgt    5     96.778 ±   1.314      B/op
+SpringPooling.simple_avg:·gc.churn.PS_Survivor_Space         avgt    5      0.311 ±   0.198    MB/sec
+SpringPooling.simple_avg:·gc.churn.PS_Survivor_Space.norm    avgt    5      0.024 ±   0.015      B/op
+SpringPooling.simple_avg:·gc.count                           avgt    5    883.000              counts
+SpringPooling.simple_avg:·gc.time                            avgt    5    317.000                  ms
+SpringPooling.simple_avg:·rt.safepointSyncTime               avgt    5      1.424                  ms
+SpringPooling.simple_avg:·rt.safepointTime                   avgt    5      3.960                  ms
+SpringPooling.simple_avg:·rt.safepoints                      avgt    5   1811.000              counts
+SpringPooling.simple_avg:·rt.sync.contendedLockAttempts      avgt    5    254.000               locks
+SpringPooling.simple_avg:·rt.sync.fatMonitors                avgt    5    512.000            monitors
+SpringPooling.simple_avg:·rt.sync.futileWakeups              avgt    5     25.000              counts
+SpringPooling.simple_avg:·rt.sync.monitorDeflations          avgt    5     81.000            monitors
+SpringPooling.simple_avg:·rt.sync.monitorInflations          avgt    5     83.000            monitors
+SpringPooling.simple_avg:·rt.sync.notifications              avgt    5    130.000              counts
+SpringPooling.simple_avg:·rt.sync.parks                      avgt    5    361.000              counts
 
 */
